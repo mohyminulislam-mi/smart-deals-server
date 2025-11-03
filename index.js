@@ -30,6 +30,7 @@ async function run() {
 
     const db = client.db("smart_DB");
     const productCollections = db.collection("products");
+    const bidsCollections = db.collection("bids");
 
     // create data on database
     app.post("/products", async (req, res) => {
@@ -39,7 +40,13 @@ async function run() {
     });
     // get data on database
     app.get("/products", async (req, res) => {
-      const cursor = productCollections.find();
+      console.log(req.query);
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.email = email;
+      }
+      const cursor = productCollections.find(query);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -73,6 +80,24 @@ async function run() {
       const result = await productCollections.deleteOne(query);
       res.send(result);
     });
+     //bids related apis
+    app.get("/bids", async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.buyer_email = email;
+      }
+
+      const cursor = bidsCollections.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+    // create bids data on database
+    app.post('/bids', async (req, res) => {
+      const newBids = req.body;
+      const result = await bidsCollections.insertOne(newBids);
+      res.send(result)
+    })
 
     await client.db("admin").command({ ping: 1 });
     console.log("✅ You successfully connected to MongoDB!");
