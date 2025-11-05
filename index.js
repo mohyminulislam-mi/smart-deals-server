@@ -31,6 +31,30 @@ async function run() {
     const db = client.db("smart_DB");
     const productCollections = db.collection("products");
     const bidsCollections = db.collection("bids");
+    const userCollections = db.collection("users");
+
+    // latest products
+    app.get("/latest-products", async (req, res) => {
+      const cursor = productCollections
+        .find()
+        .sort({ created_at: -1 })
+        .limit(6);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+    // users Collections
+    app.post("/users", async (req, res) => {
+      const newUser = req.body;
+      const email = req.body.email;
+      const query = { email: email };
+      const existingUser = await userCollections.findOne(query);
+      if (existingUser) {
+        res.send({ message: "User already exist" });
+      } else {
+        const result = await userCollections.insertOne(newUser);
+        res.send(result);
+      }
+    });
 
     // create data on database
     app.post("/products", async (req, res) => {
@@ -53,6 +77,8 @@ async function run() {
 
     app.get("/products/:id", async (req, res) => {
       const id = req.params.id;
+      console.log("id", id);
+
       const query = { _id: new ObjectId(id) };
       const result = await productCollections.findOne(query);
       res.send(result);
@@ -80,7 +106,7 @@ async function run() {
       const result = await productCollections.deleteOne(query);
       res.send(result);
     });
-     //bids related apis
+    //bids related apis
     app.get("/bids", async (req, res) => {
       const email = req.query.email;
       const query = {};
@@ -93,11 +119,11 @@ async function run() {
       res.send(result);
     });
     // create bids data on database
-    app.post('/bids', async (req, res) => {
+    app.post("/bids", async (req, res) => {
       const newBids = req.body;
       const result = await bidsCollections.insertOne(newBids);
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log("✅ You successfully connected to MongoDB!");
