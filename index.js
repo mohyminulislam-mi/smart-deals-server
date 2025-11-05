@@ -38,7 +38,7 @@ async function run() {
       const cursor = productCollections
         .find()
         .sort({ created_at: -1 })
-        .limit(6);
+        .limit(8);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -106,6 +106,13 @@ async function run() {
       const result = await productCollections.deleteOne(query);
       res.send(result);
     });
+
+    // create bids data on database
+    app.post("/bids", async (req, res) => {
+      const newBids = req.body;
+      const result = await bidsCollections.insertOne(newBids);
+      res.send(result);
+    });
     //bids related apis
     app.get("/bids", async (req, res) => {
       const email = req.query.email;
@@ -118,10 +125,11 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
-    // create bids data on database
-    app.post("/bids", async (req, res) => {
-      const newBids = req.body;
-      const result = await bidsCollections.insertOne(newBids);
+    app.get("/products/bids/:productId", async (req, res) => {
+      const productId = req.params.productId;
+      const query = { product: productId };
+      const cursor = bidsCollections.find(query).sort({ buyer_bid: -1 });
+      const result = await cursor.toArray();
       res.send(result);
     });
 
