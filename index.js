@@ -1,16 +1,45 @@
 // Import dependencies
 const express = require("express");
 const cors = require("cors");
+const admin = require("firebase-admin");
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // Create app
 const app = express();
 const port = process.env.PORT || 3000;
 
+const serviceAccount = require("./smart-deals-adminsdk.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 // Middleware
 app.use(cors());
 app.use(express.json());
 
+const logger = (req, res, next) => {
+  console.log("login information");
+  next();
+};
+const verifyFirebaseToken = async (req, res, next) => {
+  // console.log('in the verify middleware', req.headers.authorization);
+  if (!req.headers.authorization) {
+    //do not allow to go
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  const token = req.headers.authorization.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  try {
+    const userInfo = await admin.auth().verifyIdToken(token);
+    console.log("after token validtion", userInfo);
+    next();
+  } catch {
+    console.log("Invalid Token");
+
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+};
 const uri =
   "mongodb+srv://smartUserDB:yWjSihLF55jNaACc@mohyminulislam.uwhwdlk.mongodb.net/?appName=Mohyminulislam";
 
@@ -33,15 +62,6 @@ async function run() {
     const bidsCollections = db.collection("bids");
     const userCollections = db.collection("users");
 
-    // latest products
-    app.get("/latest-products", async (req, res) => {
-      const cursor = productCollections
-        .find()
-        .sort({ created_at: -1 })
-        .limit(8);
-      const result = await cursor.toArray();
-      res.send(result);
-    });
     // users Collections
     app.post("/users", async (req, res) => {
       const newUser = req.body;
@@ -71,6 +91,15 @@ async function run() {
         query.email = email;
       }
       const cursor = productCollections.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+    // latest products
+    app.get("/latest-products", async (req, res) => {
+      const cursor = productCollections
+        .find()
+        .sort({ created_at: -1 })
+        .limit(8);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -107,20 +136,20 @@ async function run() {
       res.send(result);
     });
 
-    // create bids data on database
+    //______________ create bids data on database ______________
     app.post("/bids", async (req, res) => {
       const newBids = req.body;
       const result = await bidsCollections.insertOne(newBids);
       res.send(result);
     });
-    //bids related apis
-    app.get("/bids", async (req, res) => {
+    // get bids API
+    app.get("/bids", logger, verifyFirebaseToken, async (req, res) => {
+      // console.log("headers", req.headers);
       const email = req.query.email;
       const query = {};
       if (email) {
         query.buyer_email = email;
       }
-
       const cursor = bidsCollections.find(query);
       const result = await cursor.toArray();
       res.send(result);
