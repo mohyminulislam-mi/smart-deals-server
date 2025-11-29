@@ -2,7 +2,8 @@
 const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
-
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // Create app
 const app = express();
@@ -16,12 +17,15 @@ admin.initializeApp({
 app.use(cors());
 app.use(express.json());
 
-const logger = (req, res, next) => {
-  console.log("login information");
-  next();
-};
+
+// const logger = (req, res, next) => {
+//   console.log("login information");
+//   next();
+// };
+
 const verifyFirebaseToken = async (req, res, next) => {
   // console.log('in the verify middleware', req.headers.authorization);
+  //
   if (!req.headers.authorization) {
     //do not allow to go
     return res.status(401).send({ message: "unauthorized access" });
@@ -32,6 +36,7 @@ const verifyFirebaseToken = async (req, res, next) => {
   }
   try {
     const userInfo = await admin.auth().verifyIdToken(token);
+    req.token_email = userInfo.email;
     console.log("after token validtion", userInfo);
     next();
   } catch {
@@ -40,6 +45,7 @@ const verifyFirebaseToken = async (req, res, next) => {
     return res.status(401).send({ message: "unauthorized access" });
   }
 };
+
 const uri =
   "mongodb+srv://smartUserDB:yWjSihLF55jNaACc@mohyminulislam.uwhwdlk.mongodb.net/?appName=Mohyminulislam";
 
@@ -61,6 +67,15 @@ async function run() {
     const productCollections = db.collection("products");
     const bidsCollections = db.collection("bids");
     const userCollections = db.collection("users");
+
+    // JWT related API
+    // app.post("/getToken", (req, res) => {
+    //   const loggedUser = req.body;
+    //   const token = jwt.sign(loggedUser, process.env.JWT_SECRET, {
+    //     expiresIn: "1h",
+    //   });
+    //   res.send({ token: token });
+    // });
 
     // users Collections
     app.post("/users", async (req, res) => {
@@ -143,24 +158,31 @@ async function run() {
       res.send(result);
     });
     // get bids API
-    app.get("/bids", logger, verifyFirebaseToken, async (req, res) => {
+    app.get("/bids", verifyFirebaseToken, async (req, res) => {
       // console.log("headers", req.headers);
       const email = req.query.email;
       const query = {};
       if (email) {
+        if (email !== req.token_email) {
+          return res.status(403).send({ message: "Forbidden access" });
+        }
         query.buyer_email = email;
       }
       const cursor = bidsCollections.find(query);
       const result = await cursor.toArray();
       res.send(result);
     });
-    app.get("/products/bids/:productId", async (req, res) => {
-      const productId = req.params.productId;
-      const query = { product: productId };
-      const cursor = bidsCollections.find(query).sort({ buyer_bid: -1 });
-      const result = await cursor.toArray();
-      res.send(result);
-    });
+    app.get(
+      "/products/bids/:productId",
+      verifyFirebaseToken,
+      async (req, res) => {
+        const productId = req.params.productId;
+        const query = { product: productId };
+        const cursor = bidsCollections.find(query).sort({ buyer_bid: -1 });
+        const result = await cursor.toArray();
+        res.send(result);
+      }
+    );
     app.delete("/bids/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
