@@ -17,22 +17,16 @@ admin.initializeApp({
 app.use(cors());
 app.use(express.json());
 
-
-// const logger = (req, res, next) => {
-//   console.log("login information");
-//   next();
-// };
-
 const verifyFirebaseToken = async (req, res, next) => {
   // console.log('in the verify middleware', req.headers.authorization);
   //
   if (!req.headers.authorization) {
     //do not allow to go
-    return res.status(401).send({ message: "unauthorized access" });
+    return res.status(401).send({ message: "unauthorized access 1" });
   }
   const token = req.headers.authorization.split(" ")[1];
   if (!token) {
-    return res.status(401).send({ message: "unauthorized access" });
+    return res.status(401).send({ message: "unauthorized access 2" });
   }
   try {
     const userInfo = await admin.auth().verifyIdToken(token);
@@ -42,7 +36,7 @@ const verifyFirebaseToken = async (req, res, next) => {
   } catch {
     console.log("Invalid Token");
 
-    return res.status(401).send({ message: "unauthorized access" });
+    return res.status(401).send({ message: "unauthorized access 3" });
   }
 };
 
@@ -68,15 +62,6 @@ async function run() {
     const bidsCollections = db.collection("bids");
     const userCollections = db.collection("users");
 
-    // JWT related API
-    // app.post("/getToken", (req, res) => {
-    //   const loggedUser = req.body;
-    //   const token = jwt.sign(loggedUser, process.env.JWT_SECRET, {
-    //     expiresIn: "1h",
-    //   });
-    //   res.send({ token: token });
-    // });
-
     // users Collections
     app.post("/users", async (req, res) => {
       const newUser = req.body;
@@ -98,7 +83,7 @@ async function run() {
       res.send(result);
     });
     // get data on database
-    app.get("/products", async (req, res) => {
+    app.get("/products", verifyFirebaseToken, async (req, res) => {
       console.log(req.query);
       const email = req.query.email;
       const query = {};
@@ -163,10 +148,10 @@ async function run() {
       const email = req.query.email;
       const query = {};
       if (email) {
+        query.buyer_email = email;
         if (email !== req.token_email) {
           return res.status(403).send({ message: "Forbidden access" });
         }
-        query.buyer_email = email;
       }
       const cursor = bidsCollections.find(query);
       const result = await cursor.toArray();
