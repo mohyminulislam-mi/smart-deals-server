@@ -55,7 +55,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const db = client.db("smart_DB");
     const productCollections = db.collection("products");
@@ -129,7 +129,7 @@ async function run() {
     });
 
     // delete data on database
-    app.delete("/products/:id", async (req, res) => {
+    app.delete("/products/:id",verifyFirebaseToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await productCollections.deleteOne(query);
@@ -175,7 +175,7 @@ async function run() {
       res.send(result);
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("✅ You successfully connected to MongoDB!");
   } finally {
   }
